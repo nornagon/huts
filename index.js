@@ -92,6 +92,7 @@ const color = {
   road: 'black',
   cheese: 'yellow',
   worker: 'brown',
+  combiner: 'orange',
 }
 
 const grid = new Map2
@@ -108,7 +109,7 @@ function draw() {
     ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
   })
   trees.forEach((v, x, y) => {
-    ctx.fillStyle = color[v]
+    ctx.fillStyle = color[v] || 'red'
     ctx.beginPath()
     ctx.arc(x*TILE_SIZE + TILE_SIZE / 2, y*TILE_SIZE + TILE_SIZE / 2, TILE_SIZE / 2 - 3, 0, Math.PI * 2)
     ctx.fill()
@@ -176,6 +177,8 @@ function paint(e) {
 
   if (brush === 'hut') {
     grid.set(tx, ty, {type: 'hut', hasWorker: true})
+  } else if (brush === 'combiner') {
+    grid.set(tx, ty, {type: 'combiner', item: null})
   } else if (brush === 'cheese') {
     trees.set(tx, ty, brush)
   } else if (brush === 'road') {
@@ -196,6 +199,7 @@ window.addEventListener('keydown', e => {
     'Digit2': 'cheese',
     'Digit3': 'road',
     'KeyR': 'road',
+    'KeyC': 'combiner',
   })[e.code]
 
   if (e.code === 'Space') {
@@ -219,16 +223,36 @@ function getType(x, y) {
 }
 
 function advance() {
+  const maybeCombinerEat = (v, x, y) => {
+    if (getType(x, y) === 'combiner') {
+      const combiner = grid.get(x, y)
+      if (combiner.item) {
+        const [a, b] = [combiner.item, v].sort()
+        combiner.item = null
+        const result = composites.has(a, b) ? composites.get(a, b) : 'junk'
+        boxes.set(x, y, result)
+      } else {
+        boxes.delete(x, y)
+        combiner.item = v
+      }
+    }
+  }
+  const canPushTo = (x, y) => {
+    const t = getType(x, y)
+    return t === 'road' || t === 'combiner'
+  }
   workers.forEach(w => {
     const {x, y, dir:{x:dx, y:dy}} = w
     const isPushing = boxes.get(x+dx, y+dy)
     const behind = grid.get(x+dx*2, y+dy*2)
     if (isPushing ?
-          getType(x+dx*2, y+dy*2) === 'road' && !boxes.has(x+dx*2, y+dy*2)
-        : getType(x+dx, y+dy) === 'road') {
+          canPushTo(x+dx*2, y+dy*2) && !boxes.has(x+dx*2, y+dy*2)
+        : canPushTo(x+dx, y+dy)) {
       if (isPushing) {
-        boxes.set(x+dx*2, y+dy*2, boxes.get(x+dx, y+dy))
+        const box = boxes.get(x+dx, y+dy)
+        boxes.set(x+dx*2, y+dy*2, box)
         boxes.delete(x+dx, y+dy)
+        maybeCombinerEat(box, x+dx*2, y+dy*2)
       }
       w.x += dx; w.y += dy;
     }
