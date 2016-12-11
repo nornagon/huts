@@ -115,8 +115,10 @@ function draw() {
     ctx.fill()
   })
   boxes.forEach((v, x, y) => {
-    ctx.fillStyle = color[v]
+    ctx.fillStyle = 'cyan'
     ctx.fillRect(x * TILE_SIZE + 2, y * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
+    const img = resourceImages.get(v)
+    if (img) ctx.drawImage(resourceImages.get(v), x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE)
   })
   workers.forEach(({x, y}) => {
     ctx.fillStyle = color['worker']
@@ -124,7 +126,13 @@ function draw() {
   })
 }
 
-const resources = ["shoes", "shoe horns", "heels", "wedge heel", "sandals", "slippers", "thongs", "platform shoes", "stilettos", "athletic shoes", "cleats", "booties", "combat boots", "galoshes", "waterproof boots", "riding boots", "Roman sandals",  "high heels", "tap shoes", "loafers", "mukluk", "moccasins", "sneakers", "work boots", "running shoes", "tennis shoes"]
+const resources = ["shoes", "heels", "wedge heel", "sandals", "slippers", "thongs", "stilettos", "athletic shoes", "cleats", "booties", "combat boots", "galoshes", "riding boots", "high heels", "loafers", "moccasins", "sneakers", "work boots", "running shoes", "tennis shoes"]
+const resourceImages = new Map
+resources.forEach(r => {
+  const img = new Image
+  img.src = `images/${r}.png`
+  resourceImages.set(r, img)
+})
 
 const sample = (arr => arr[(Math.random() * arr.length)|0])
 
@@ -143,7 +151,7 @@ function genTech() {
   const composites = new Map2
 
   const pool = primitives.slice()
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 10; i++) {
     let a, b
     do {
       [a, b] = [sample(pool), sample(pool)].sort()
@@ -196,10 +204,10 @@ canvas.addEventListener('mousemove', e => {
 window.addEventListener('keydown', e => {
   brush = ({
     'Digit1': 'hut',
-    'Digit2': 'cheese',
     'Digit3': 'road',
     'KeyR': 'road',
     'KeyC': 'combiner',
+    'KeyH': 'hut',
   })[e.code]
 
   if (e.code === 'Space') {
@@ -262,9 +270,9 @@ function advance() {
       directions.forEach(([dx, dy]) => {
         if (!v.hasWorker) return;
         let rx = x+dx, ry = y+dy;
-        while (getType(rx, ry) === 'road') {
+        while (canPushTo(rx, ry)) {
           if (boxes.has(rx, ry)) {
-            if (getType(rx+dx, ry+dy) === 'road') {
+            if (canPushTo(rx+dx, ry+dy)) {
               // Go out.
               v.hasWorker = false;
               workers.push({x, y, dir:{x:dx, y:dy}})
@@ -282,6 +290,8 @@ function sleepyTime() {
   grid.forEach((v, x, y) => {
     if (v.type === 'hut') {
       v.hasWorker = true
+    } else if (v.type === 'combiner') {
+      v.item = null
     }
   })
 
